@@ -1,0 +1,41 @@
+{
+  "name": "new-project",
+  "version": "1.0.0",
+  "description": "Mine Seed Scanner desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:portable": "electron-builder --win portable"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.andrew.mineseedscanner",
+    "productName": "Mine Seed Scanner",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "index.html",
+      "Styles.css",
+      "Worker.js",
+      "main.js"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
+}

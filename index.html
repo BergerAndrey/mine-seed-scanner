@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mine Seed Scanner</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="Styles.css">
+</head>
+<body>
+    <header class="topbar">
+        <div class="topbar-title">Seed Scanner</div>
+        <div class="topbar-title">Parsed Results</div>
+    </header>
+
+    <main class="app-shell">
+        <section class="left-panel">
+            <div class="scanner-layout">
+                <div class="controls-column">
+                    <div class="field-wrap">
+                        <label for="clientSeed" class="field-label">Client seed:</label>
+                        <input type="text" id="clientSeed" class="form-control form-control-dark" required>
+                    </div>
+
+                    <div class="field-wrap">
+                        <label for="serverSeed" class="field-label">Server seed:</label>
+                        <input type="text" id="serverSeed" class="form-control form-control-dark" required>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field-wrap">
+                            <label for="startNonce" class="field-label">Start nonce:</label>
+                            <input type="number" id="startNonce" class="form-control form-control-dark" value="1">
+                        </div>
+                        <div class="field-wrap">
+                            <label for="endNonce" class="field-label">End nonce:</label>
+                            <input type="number" id="endNonce" class="form-control form-control-dark" value="100000">
+                        </div>
+                    </div>
+
+                    <div class="field-row mines-row">
+                        <div class="field-wrap mines-field">
+                            <label for="mineCount" class="field-label">Mines:</label>
+                            <input type="number" id="mineCount" class="form-control form-control-dark" value="10" min="1" max="24">
+                        </div>
+                        <div class="selection-stats">
+                            <p class="grid-meta compact-meta" id="selectedCount">Выбрано 💎: 0</p>
+                            <p class="grid-meta compact-meta" id="currentMulti">current multi. -</p>
+                        </div>
+                    </div>
+
+                    <div class="field-row gems-row">
+                        <div class="field-wrap gems-field">
+                            <label for="gemsCount" class="field-label">Gems:</label>
+                            <input type="number" id="gemsCount" class="form-control form-control-dark" value="3" min="1" max="24">
+                        </div>
+                        <div class="field-wrap random-btn-wrap">
+                            <label class="field-label invisible-label">.</label>
+                            <button id="randomSelectBtn" type="button" class="btn btn-secondary w-100">Random Select</button>
+                        </div>
+                    </div>
+
+                    <div class="scan-buttons">
+                        <button id="startBtn" type="button" class="btn btn-start w-100" disabled>Start Process</button>
+                        <button id="stopBtn" type="button" class="btn btn-stop w-100" disabled>Stop</button>
+                    </div>
+
+                    <div class="progress mt-3" style="display:block;" id="progressWrap">
+                        <div class="progress-bar" id="progressBar" style="width:100%">0%</div>
+                    </div>
+                </div>
+
+                <div class="grid-column">
+                    <h2 class="grid-title">Select gems</h2>
+                    <div id="diamondGrid"></div>
+                </div>
+            </div>
+
+            <div class="patterns-panel">
+                <h5 class="panel-title">Сохраненные паттерны</h5>
+                <div class="patterns-header">
+                    <input type="text" id="patternName" class="form-control form-control-dark" placeholder="Название паттерна">
+                    <button id="savePatternBtn" class="btn btn-success">Сохранить</button>
+                </div>
+                <div id="patternsList" class="patterns-list">
+                    <p class="text-muted text-center m-0">Нет сохраненных паттернов</p>
+                </div>
+                <div class="d-flex gap-2 mt-3 flex-wrap">
+                    <button id="battleBtn" class="btn btn-warning flex-grow-1">Баттл выбранных</button>
+                    <button id="deleteSelectedBtn" class="btn btn-danger">Удалить</button>
+                </div>
+            </div>
+        </section>
+
+        <aside class="right-panel">
+            <div class="results-card" id="battleResultsCard" style="display: none;">
+                <h5 class="panel-title">Результаты баттла</h5>
+                <div class="table-responsive battle-results-table">
+                    <table class="table table-dark mb-0">
+                        <thead>
+                            <tr>
+                                <th>Паттерн</th>
+                                <th>Совпадения</th>
+                                <th>Примеры nonce</th>
+                            </tr>
+                        </thead>
+                        <tbody id="battleResultsBody"></tbody>
+                    </table>
+                </div>
+                <button id="hideResultsBtn" class="btn btn-secondary mt-3">Скрыть</button>
+            </div>
+
+            <div class="results-card">
+                <h5 class="panel-title">Найдено: <span id="perfectCount">0</span></h5>
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nonce</th>
+                                <th>Мины</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+<script>
+    const WORKER_SOURCE = `
+const encoder = new TextEncoder();
+const keyCache = new Map();
+
+async function getHmacKey(serverSeed) {
+    if (keyCache.has(serverSeed)) return keyCache.get(serverSeed);
+    const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(serverSeed),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
+    keyCache.set(serverSeed, key);
+    return key;
+}
+
+async function hmacSha256Bytes(serverSeed, message) {
+    const key = await getHmacKey(serverSeed);
+    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
+    return new Uint8Array(signature);
+}
+
+async function getMinePositions(serverSeed, clientSeed, nonce, mineCount) {
+    const positions = [...Array(25).keys()];
+    const mines = [];
+    let allBytes = new Uint8Array(0);
+    let round = 0;
+
+    while (allBytes.length < mineCount * 4) {
+        const msg = clientSeed + ':' + nonce + ':' + round;
+        const digest = await hmacSha256Bytes(serverSeed, msg);
+        const merged = new Uint8Array(allBytes.length + digest.length);
+        merged.set(allBytes, 0);
+        merged.set(digest, allBytes.length);
+        allBytes = merged;
+        round++;
+    }
+
+    for (let i = 0; i < mineCount; i++) {
+        const offset = i * 4;
+        const valInt =
+            (allBytes[offset] * 16777216) +
+            (allBytes[offset + 1] * 65536) +
+            (allBytes[offset + 2] * 256) +
+            allBytes[offset + 3];
+        const val = valInt / 4294967296;
+        const idx = Math.floor(val * positions.length);
+        mines.push(positions.splice(idx, 1)[0]);
+    }
+
+    return mines;
+}
+
+self.onmessage = async function (e) {
+    const data = e.data;
+    let processed = 0;
+    const total = data.endNonce - data.startNonce;
+
+    for (let nonce = data.startNonce; nonce < data.endNonce; nonce++) {
+        const mines = await getMinePositions(
+            data.serverSeed,
+            data.clientSeed,
+            nonce,
+            data.mineCount
+        );
+
+        const mineSet = new Set(mines);
+        const diamonds = data.diamondPositions.filter(p => !mineSet.has(p));
+
+        if (diamonds.length === data.diamondPositions.length) {
+            self.postMessage({ found: true, nonce: nonce, mines: mines });
+        }
+
+        processed++;
+        if (processed % 250 === 0 || processed === total) {
+            self.postMessage({
+                progress: (processed / total * 100).toFixed(1)
+            });
+        }
+    }
+
+    self.postMessage({ done: true });
+};
+    `;
+    const WORKER_URL = URL.createObjectURL(new Blob([WORKER_SOURCE], { type: 'application/javascript' }));
+
+    let diamondPositions = [];
+    let currentScanStopper = null;
+
+    const serverSeedInput = document.getElementById('serverSeed');
+    const clientSeedInput = document.getElementById('clientSeed');
+    const mineCountInput = document.getElementById('mineCount');
+    const gemsCountInput = document.getElementById('gemsCount');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const randomSelectBtn = document.getElementById('randomSelectBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const diamondGridDiv = document.getElementById('diamondGrid');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressBar = document.getElementById('progressBar');
+    const perfectCountSpan = document.getElementById('perfectCount');
+    const resultsBody = document.getElementById('resultsBody');
+    const currentMultiLabel = document.getElementById('currentMulti');
+
+    document.addEventListener('DOMContentLoaded', function () {
+        createGrid();
+        serverSeedInput.addEventListener('input', validateForm);
+        clientSeedInput.addEventListener('input', validateForm);
+        mineCountInput.addEventListener('input', function () {
+            syncGemsLimit();
+            updateGridDisabledState();
+            validateForm();
+        });
+        gemsCountInput.addEventListener('input', syncGemsLimit);
+        randomSelectBtn.addEventListener('click', randomSelectCells);
+        startBtn.addEventListener('click', startScan);
+        stopBtn.addEventListener('click', stopScan);
+
+        loadPatterns();
+        document.getElementById('savePatternBtn').addEventListener('click', savePattern);
+        document.getElementById('battleBtn').addEventListener('click', startBattle);
+        document.getElementById('deleteSelectedBtn').addEventListener('click', deleteSelectedPatterns);
+        document.getElementById('hideResultsBtn').addEventListener('click', () => {
+            document.getElementById('battleResultsCard').style.display = 'none';
+        });
+        syncGemsLimit();
+        updateCurrentMultiplier();
+    });
+
+    function createGrid() {
+        diamondGridDiv.innerHTML = '';
+        for (let i = 0; i < 25; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.pos = i;
+            renderGridCell(cell, false);
+            cell.addEventListener('click', function () {
+                if (this.classList.contains('disabled')) return;
+                this.classList.toggle('selected');
+                updatePositions();
+                validateForm();
+            });
+            diamondGridDiv.appendChild(cell);
+        }
+        updateGridDisabledState();
+    }
+
+    function renderGridCell(cell, isSelected) {
+        const pos = parseInt(cell.dataset.pos, 10);
+        if (isSelected) {
+            cell.innerHTML = '<img class="gem-icon" src="./gem.png" alt="gem">';
+        } else {
+            cell.textContent = pos;
+        }
+    }
+
+    function updatePositions() {
+        diamondPositions = Array.from(document.querySelectorAll('.grid-cell.selected'))
+            .map(el => parseInt(el.dataset.pos, 10));
+
+        selectedCountSpan.textContent = 'Выбрано: ' + diamondPositions.length;
+        updateCurrentMultiplier();
+
+        document.querySelectorAll('.grid-cell').forEach(cell => {
+            renderGridCell(cell, cell.classList.contains('selected'));
+        });
+        updateGridDisabledState();
+    }
+
+    function updateGridDisabledState() {
+        const mineCount = parseInt(mineCountInput.value, 10) || 10;
+        const maxDiamonds = 25 - mineCount;
+        const currentSelected = diamondPositions.length;
+
+        document.querySelectorAll('.grid-cell').forEach(cell => {
+            if (!cell.classList.contains('selected') && currentSelected >= maxDiamonds) {
+                cell.classList.add('disabled');
+            } else {
+                cell.classList.remove('disabled');
+            }
+        });
+    }
+
+    function validateForm() {
+        const serverSeed = serverSeedInput.value.trim();
+        const clientSeed = clientSeedInput.value.trim();
+        const mineCount = parseInt(mineCountInput.value, 10) || 10;
+        const maxDiamonds = 25 - mineCount;
+        const selected = diamondPositions.length;
+        startBtn.disabled = !(serverSeed && clientSeed && selected <= maxDiamonds);
+        updateCurrentMultiplier();
+    }
+
+    function syncGemsLimit() {
+        const mineCount = parseInt(mineCountInput.value, 10) || 10;
+        const maxDiamonds = Math.max(1, 25 - mineCount);
+        gemsCountInput.max = String(maxDiamonds);
+        let gems = parseInt(gemsCountInput.value, 10) || 1;
+        if (gems > maxDiamonds) gems = maxDiamonds;
+        if (gems < 1) gems = 1;
+        gemsCountInput.value = String(gems);
+    }
+
+    function randomSelectCells() {
+        syncGemsLimit();
+        const mineCount = parseInt(mineCountInput.value, 10) || 10;
+        const maxDiamonds = 25 - mineCount;
+        const requested = parseInt(gemsCountInput.value, 10) || 1;
+        const target = Math.min(requested, maxDiamonds);
+
+        const positions = [...Array(25).keys()];
+        for (let i = positions.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const t = positions[i];
+            positions[i] = positions[j];
+            positions[j] = t;
+        }
+
+        const picked = new Set(positions.slice(0, target));
+        document.querySelectorAll('.grid-cell').forEach(cell => {
+            const pos = parseInt(cell.dataset.pos, 10);
+            const selected = picked.has(pos);
+            cell.classList.toggle('selected', selected);
+            renderGridCell(cell, selected);
+        });
+
+        updatePositions();
+        validateForm();
+    }
+
+    function getCombinations(n, k) {
+        if (k < 0 || k > n) return 0;
+        if (k === 0 || k === n) return 1;
+        let c = 1;
+        for (let i = 1; i <= k; i++) {
+            c = c * (n - i + 1) / i;
+        }
+        return c;
+    }
+
+    function getMultiplier(diamond, mine) {
+        if (diamond < 1 || mine < 1 || diamond > 24 || mine > 24) return null;
+        if (diamond + mine > 25) return null;
+        if (diamond === 1 && mine === 1) return 1.01;
+
+        const totalCombs = getCombinations(25, diamond);
+        const winCombs = getCombinations(25 - mine, diamond);
+        if (!winCombs) return null;
+
+        const multiplier = 0.99 * (totalCombs / winCombs);
+        if (multiplier >= 1000) return Math.round(multiplier);
+        return Math.round(multiplier * 100) / 100;
+    }
+
+    function updateCurrentMultiplier() {
+        const diamond = diamondPositions.length;
+        const mine = parseInt(mineCountInput.value, 10) || 0;
+        if (diamond === 0 || mine === 0) {
+            currentMultiLabel.textContent = 'current multi. -';
+            return;
+        }
+
+        const value = getMultiplier(diamond, mine);
+        if (value === null) {
+            currentMultiLabel.textContent = 'current multi. -';
+            return;
+        }
+        const formattedValue = Number(value)
+            .toFixed(2)
+            .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        currentMultiLabel.textContent = 'current multi. x' + formattedValue;
+    }
+
+    function runScanWithWorkers(params, onResult, onProgress, onDone) {
+        const totalRange = params.endNonce - params.startNonce;
+        if (totalRange <= 0) {
+            onDone();
+            return () => {};
+        }
+
+        const numWorkers = Math.min(navigator.hardwareConcurrency || 4, totalRange);
+        const chunkSize = Math.ceil(totalRange / numWorkers);
+        const workers = [];
+        const workerProgresses = new Array(numWorkers).fill(0);
+        let completedWorkers = 0;
+
+        function stopAll() {
+            workers.forEach(w => w && w.terminate());
+            workers.length = 0;
+        }
+
+        function updateOverallProgress() {
+            const percent = (workerProgresses.reduce((acc, p) => acc + p, 0) * 100).toFixed(1);
+            onProgress(percent);
+        }
+
+        for (let i = 0; i < numWorkers; i++) {
+            const workerStart = params.startNonce + i * chunkSize;
+            let workerEnd = workerStart + chunkSize;
+            if (i === numWorkers - 1) workerEnd = params.endNonce;
+            if (workerStart >= workerEnd) {
+                workerProgresses[i] = 1 / numWorkers;
+                completedWorkers++;
+                continue;
+            }
+
+            const workerTotal = workerEnd - workerStart;
+            const workerShare = workerTotal / totalRange;
+            const worker = new Worker(WORKER_URL);
+            workers[i] = worker;
+
+            worker.onmessage = function (e) {
+                if (e.data.found) {
+                    onResult(e.data.nonce, e.data.mines);
+                    return;
+                }
+
+                if (e.data.progress !== undefined) {
+                    workerProgresses[i] = (parseFloat(e.data.progress) / 100) * workerShare;
+                    updateOverallProgress();
+                }
+
+                if (e.data.done) {
+                    workerProgresses[i] = workerShare;
+                    updateOverallProgress();
+                    completedWorkers++;
+                    if (completedWorkers === numWorkers) {
+                        onDone();
+                    }
+                }
+            };
+
+            worker.postMessage({
+                serverSeed: params.serverSeed,
+                clientSeed: params.clientSeed,
+                mineCount: params.mineCount,
+                startNonce: workerStart,
+                endNonce: workerEnd,
+                diamondPositions: params.diamondPositions
+            });
+        }
+
+        return stopAll;
+    }
+
+    function startScan() {
+        if (currentScanStopper) {
+            currentScanStopper();
+            currentScanStopper = null;
+        }
+
+        const params = {
+            serverSeed: serverSeedInput.value.trim(),
+            clientSeed: clientSeedInput.value.trim(),
+            mineCount: parseInt(mineCountInput.value, 10),
+            startNonce: parseInt(document.getElementById('startNonce').value, 10),
+            endNonce: parseInt(document.getElementById('endNonce').value, 10),
+            diamondPositions: diamondPositions
+        };
+
+        if (params.diamondPositions.length > 25 - params.mineCount) {
+            alert('Слишком много выбранных алмазов.');
+            return;
+        }
+
+        resultsBody.innerHTML = '';
+        perfectCountSpan.textContent = '0';
+        progressWrap.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
+
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        currentScanStopper = runScanWithWorkers(
+            params,
+            (nonce, mines) => addResult(nonce, mines),
+            (percent) => {
+                progressBar.style.width = percent + '%';
+                progressBar.textContent = percent + '%';
+            },
+            () => {
+                progressBar.style.width = '100%';
+                progressBar.textContent = '100%';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                currentScanStopper = null;
+            }
+        );
+    }
+
+    function stopScan() {
+        if (currentScanStopper) {
+            currentScanStopper();
+            currentScanStopper = null;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+    }
+
+    function addResult(nonce, mines) {
+        const rows = Array.from(resultsBody.rows);
+        let insertAt = rows.length;
+        for (let i = 0; i < rows.length; i++) {
+            const rowNonce = parseInt(rows[i].cells[0].textContent, 10);
+            if (nonce < rowNonce) {
+                insertAt = i;
+                break;
+            }
+        }
+
+        const row = resultsBody.insertRow(insertAt);
+        row.innerHTML = '<td>' + nonce + '</td><td>' + mines.join(', ') + '</td>';
+        perfectCountSpan.textContent = String((parseInt(perfectCountSpan.textContent, 10) || 0) + 1);
+    }
+
+    let patterns = [];
+
+    function loadPatterns() {
+        const saved = localStorage.getItem('minePatterns');
+        if (saved) {
+            try {
+                patterns = JSON.parse(saved);
+            } catch {
+                patterns = [];
+            }
+        }
+        renderPatternsList();
+    }
+
+    function savePatterns() {
+        localStorage.setItem('minePatterns', JSON.stringify(patterns));
+    }
+
+    function renderPatternsList() {
+        const listDiv = document.getElementById('patternsList');
+        if (patterns.length === 0) {
+            listDiv.innerHTML = '<p class="text-muted text-center m-0">Нет сохраненных паттернов</p>';
+            return;
+        }
+
+        let html = '';
+        patterns.forEach((p, idx) => {
+            html +=
+                '<div class="pattern-item">' +
+                    '<label><input type="checkbox" class="pattern-checkbox" data-index="' + idx + '">' +
+                    '<span>' + p.name + ' (' + p.positions.length + ' ◆)</span></label>' +
+                    '<div>' +
+                        '<button class="btn btn-sm btn-outline-info me-1" onclick="loadPattern(' + idx + ')">Загрузить</button>' +
+                        '<button class="btn btn-sm btn-outline-danger" onclick="deletePattern(' + idx + ')">Удалить</button>' +
+                    '</div>' +
+                '</div>';
+        });
+        listDiv.innerHTML = html;
+    }
+
+    window.loadPattern = function (index) {
+        const p = patterns[index];
+        if (!p) return;
+
+        document.querySelectorAll('.grid-cell').forEach(cell => {
+            cell.classList.remove('selected');
+            renderGridCell(cell, false);
+        });
+
+        p.positions.forEach(pos => {
+            const cell = document.querySelector('.grid-cell[data-pos="' + pos + '"]');
+            if (cell) {
+                cell.classList.add('selected');
+                renderGridCell(cell, true);
+            }
+        });
+        updatePositions();
+        validateForm();
+    };
+
+    window.deletePattern = function (index) {
+        if (!confirm('Удалить паттерн?')) return;
+        patterns.splice(index, 1);
+        savePatterns();
+        renderPatternsList();
+    };
+
+    function savePattern() {
+        const name = document.getElementById('patternName').value.trim();
+        if (!name) {
+            alert('Введите название.');
+            return;
+        }
+        if (diamondPositions.length === 0) {
+            alert('Выберите алмазы.');
+            return;
+        }
+
+        const existing = patterns.findIndex(p => p.name === name);
+        if (existing !== -1) {
+            if (!confirm('Паттерн с таким именем уже есть. Перезаписать?')) return;
+            patterns.splice(existing, 1);
+        }
+
+        patterns.push({
+            id: Date.now() + Math.random(),
+            name: name,
+            positions: [...diamondPositions]
+        });
+
+        savePatterns();
+        renderPatternsList();
+        document.getElementById('patternName').value = '';
+    }
+
+    function deleteSelectedPatterns() {
+        const checkboxes = document.querySelectorAll('.pattern-checkbox:checked');
+        if (checkboxes.length === 0) {
+            alert('Выберите паттерны.');
+            return;
+        }
+        if (!confirm('Удалить ' + checkboxes.length + ' паттерн(ов)?')) return;
+
+        const indices = Array.from(checkboxes)
+            .map(cb => parseInt(cb.dataset.index, 10))
+            .sort((a, b) => b - a);
+
+        indices.forEach(idx => patterns.splice(idx, 1));
+        savePatterns();
+        renderPatternsList();
+    }
+
+    function startBattle() {
+        const selectedIndices = Array.from(document.querySelectorAll('.pattern-checkbox:checked'))
+            .map(cb => parseInt(cb.dataset.index, 10));
+        if (selectedIndices.length === 0) {
+            alert('Выберите паттерны для баттла.');
+            return;
+        }
+
+        const serverSeed = serverSeedInput.value.trim();
+        const clientSeed = clientSeedInput.value.trim();
+        if (!serverSeed || !clientSeed) {
+            alert('Заполните Server seed и Client seed.');
+            return;
+        }
+
+        const mineCount = parseInt(mineCountInput.value, 10);
+        const startNonce = parseInt(document.getElementById('startNonce').value, 10);
+        const endNonce = parseInt(document.getElementById('endNonce').value, 10);
+        const battlePatterns = selectedIndices.map(idx => patterns[idx]);
+
+        if (currentScanStopper) {
+            currentScanStopper();
+            currentScanStopper = null;
+        }
+
+        document.getElementById('battleResultsCard').style.display = 'block';
+        document.getElementById('battleResultsBody').innerHTML = '';
+        progressWrap.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+
+        const totalPatterns = battlePatterns.length;
+        let currentPatternIdx = 0;
+        const results = [];
+
+        function runNextPattern() {
+            if (currentPatternIdx >= totalPatterns) {
+                progressBar.style.width = '100%';
+                progressBar.textContent = '100%';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                displayBattleResults(results);
+                currentScanStopper = null;
+                return;
+            }
+
+            const pattern = battlePatterns[currentPatternIdx];
+            let foundCount = 0;
+            const examples = [];
+
+            currentScanStopper = runScanWithWorkers(
+                {
+                    serverSeed,
+                    clientSeed,
+                    mineCount,
+                    startNonce,
+                    endNonce,
+                    diamondPositions: pattern.positions
+                },
+                (nonce) => {
+                    foundCount++;
+                    if (examples.length < 5) examples.push(nonce);
+                },
+                (percent) => {
+                    const overallPercent = ((currentPatternIdx + parseFloat(percent) / 100) / totalPatterns) * 100;
+                    progressBar.style.width = overallPercent.toFixed(1) + '%';
+                    progressBar.textContent = overallPercent.toFixed(1) + '%';
+                },
+                () => {
+                    results.push({
+                        name: pattern.name,
+                        count: foundCount,
+                        examples: examples
+                    });
+                    currentPatternIdx++;
+                    runNextPattern();
+                }
+            );
+        }
+
+        runNextPattern();
+    }
+
+    function displayBattleResults(results) {
+        if (results.length === 0) return;
+        results.sort((a, b) => b.count - a.count);
+        const maxCount = results[0].count;
+        let html = '';
+
+        results.forEach(r => {
+            const winnerClass = (r.count === maxCount && maxCount > 0) ? 'winner-row' : '';
+            const examplesText = r.examples.length ? r.examples.join(', ') : 'нет';
+            html += '<tr class="' + winnerClass + '"><td>' + r.name + '</td><td>' + r.count + '</td><td>' + examplesText + '</td></tr>';
+        });
+
+        document.getElementById('battleResultsBody').innerHTML = html;
+    }
+</script>
+</body>
+</html>
