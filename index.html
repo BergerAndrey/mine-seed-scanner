@@ -3,759 +3,661 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mine Seed Scanner</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Seed Scanner</title>
     <link rel="stylesheet" href="Styles.css">
 </head>
 <body>
-    <header class="topbar">
-        <div class="topbar-title">Seed Scanner</div>
-        <div class="topbar-title">Parsed Results</div>
-    </header>
-
-    <main class="app-shell">
-        <section class="left-panel">
-            <div class="scanner-layout">
-                <div class="controls-column">
-                    <div class="field-wrap">
-                        <label for="clientSeed" class="field-label">Client seed:</label>
-                        <input type="text" id="clientSeed" class="form-control form-control-dark" required>
-                    </div>
-
-                    <div class="field-wrap">
-                        <label for="serverSeed" class="field-label">Server seed:</label>
-                        <input type="text" id="serverSeed" class="form-control form-control-dark" required>
-                    </div>
-
-                    <div class="field-row">
-                        <div class="field-wrap">
-                            <label for="startNonce" class="field-label">Start nonce:</label>
-                            <input type="number" id="startNonce" class="form-control form-control-dark" value="1">
-                        </div>
-                        <div class="field-wrap">
-                            <label for="endNonce" class="field-label">End nonce:</label>
-                            <input type="number" id="endNonce" class="form-control form-control-dark" value="100000">
-                        </div>
-                    </div>
-
-                    <div class="field-row mines-row">
-                        <div class="field-wrap mines-field">
-                            <label for="mineCount" class="field-label">Mines:</label>
-                            <input type="number" id="mineCount" class="form-control form-control-dark" value="10" min="1" max="24">
-                        </div>
-                        <div class="selection-stats">
-                            <p class="grid-meta compact-meta" id="selectedCount">Выбрано 💎: 0</p>
-                            <p class="grid-meta compact-meta" id="currentMulti">current multi. -</p>
-                        </div>
-                    </div>
-
-                    <div class="field-row gems-row">
-                        <div class="field-wrap gems-field">
-                            <label for="gemsCount" class="field-label">Gems:</label>
-                            <input type="number" id="gemsCount" class="form-control form-control-dark" value="3" min="1" max="24">
-                        </div>
-                        <div class="field-wrap random-btn-wrap">
-                            <label class="field-label invisible-label">.</label>
-                            <button id="randomSelectBtn" type="button" class="btn btn-secondary w-100">Random Select</button>
-                        </div>
-                    </div>
-
-                    <div class="scan-buttons">
-                        <button id="startBtn" type="button" class="btn btn-start w-100" disabled>Start Process</button>
-                        <button id="stopBtn" type="button" class="btn btn-stop w-100" disabled>Stop</button>
-                    </div>
-
-                    <div class="progress mt-3" style="display:block;" id="progressWrap">
-                        <div class="progress-bar" id="progressBar" style="width:100%">0%</div>
-                    </div>
-                </div>
-
-                <div class="grid-column">
-                    <h2 class="grid-title">Select gems</h2>
-                    <div id="diamondGrid"></div>
-                </div>
-            </div>
-
-            <div class="patterns-panel">
-                <h5 class="panel-title">Сохраненные паттерны</h5>
-                <div class="patterns-header">
-                    <input type="text" id="patternName" class="form-control form-control-dark" placeholder="Название паттерна">
-                    <button id="savePatternBtn" class="btn btn-success">Сохранить</button>
-                </div>
-                <div id="patternsList" class="patterns-list">
-                    <p class="text-muted text-center m-0">Нет сохраненных паттернов</p>
-                </div>
-                <div class="d-flex gap-2 mt-3 flex-wrap">
-                    <button id="battleBtn" class="btn btn-warning flex-grow-1">Баттл выбранных</button>
-                    <button id="deleteSelectedBtn" class="btn btn-danger">Удалить</button>
-                </div>
-            </div>
+    <main class="app">
+        <section class="game-select">
+            <label class="game-label" for="gameSelect">Game</label>
+            <select id="gameSelect" class="game-picker">
+                <option value="mines">Mines</option>
+                <option value="dice">Dice</option>
+                <option value="keno">Keno</option>
+            </select>
         </section>
 
-        <aside class="right-panel">
-            <div class="results-card" id="battleResultsCard" style="display: none;">
-                <h5 class="panel-title">Результаты баттла</h5>
-                <div class="table-responsive battle-results-table">
-                    <table class="table table-dark mb-0">
-                        <thead>
-                            <tr>
-                                <th>Паттерн</th>
-                                <th>Совпадения</th>
-                                <th>Примеры nonce</th>
-                            </tr>
-                        </thead>
-                        <tbody id="battleResultsBody"></tbody>
-                    </table>
+        <section class="scanner-card">
+            <aside class="controls-panel">
+                <div class="field-wrap">
+                    <label for="clientSeed">Client Seed <span>*</span></label>
+                    <input id="clientSeed" class="text-input" type="text" placeholder="Enter client seed...">
                 </div>
-                <button id="hideResultsBtn" class="btn btn-secondary mt-3">Скрыть</button>
-            </div>
 
-            <div class="results-card">
-                <h5 class="panel-title">Найдено: <span id="perfectCount">0</span></h5>
-                <div class="table-responsive">
-                    <table class="table table-dark table-striped mb-0">
-                        <thead>
-                            <tr>
-                                <th>Nonce</th>
-                                <th>Мины</th>
-                            </tr>
-                        </thead>
-                        <tbody id="resultsBody"></tbody>
-                    </table>
+                <div class="field-wrap">
+                    <label for="serverSeed">Server Seed (Unhashed) <span>*</span></label>
+                    <input id="serverSeed" class="text-input" type="text" placeholder="Enter server seed...">
                 </div>
+
+                <div class="field-row">
+                    <div class="field-wrap">
+                        <label for="startNonce">Nonce Start</label>
+                        <input id="startNonce" class="text-input" type="number" value="0" min="0">
+                    </div>
+                    <div class="field-wrap">
+                        <label for="endNonce">Nonce End</label>
+                        <input id="endNonce" class="text-input" type="number" value="10000" min="1">
+                    </div>
+                </div>
+
+                <details class="advanced">
+                    <summary>Advanced Settings</summary>
+                    <div class="field-row advanced-row">
+                        <div class="field-wrap">
+                            <label for="minHitInput">Min Hit</label>
+                            <input id="minHitInput" class="text-input" type="number" value="1" min="1">
+                        </div>
+                        <div class="field-wrap">
+                            <label for="maxRowsInput">Max Rows</label>
+                            <input id="maxRowsInput" class="text-input" type="number" value="250" min="1">
+                        </div>
+                    </div>
+                </details>
+
+                <button id="startBtn" class="primary-btn" type="button" disabled>Analyze Seeds</button>
+                <button id="stopBtn" class="secondary-btn" type="button" disabled>Stop</button>
+
+                <div class="progress-wrap" id="progressWrap">
+                    <div class="progress-bar" id="progressBar">0%</div>
+                </div>
+
+                <section class="patterns-panel" id="patternsPanel">
+                    <h2>Saved Patterns</h2>
+                    <div class="pattern-save-row">
+                        <input id="patternName" class="text-input" type="text" placeholder="Pattern name">
+                        <button id="savePatternBtn" class="small-btn" type="button">Save</button>
+                    </div>
+                    <div id="patternsList" class="patterns-list"></div>
+                </section>
+            </aside>
+
+            <section class="game-panel">
+                <div class="mode-panel" data-mode="mines">
+                    <div class="slider-head">
+                        <strong>Mines: <span id="mineCountLabel">3</span></strong>
+                    </div>
+                    <input id="mineCount" class="range-input" type="range" value="3" min="1" max="24">
+                    <div class="board-status">
+                        <span id="minesStats">Gems: 0 / Mines: 3</span>
+                        <span id="minesMultiplier">-</span>
+                    </div>
+                    <p class="hint" id="minesHint">Select tiles to click (0/22)</p>
+                    <div id="minesGrid" class="tile-grid mines-grid"></div>
+                </div>
+
+                <div class="mode-panel hidden" data-mode="dice">
+                    <div class="segmented" role="group" aria-label="Dice type">
+                        <button id="diceOverBtn" class="segment-btn active" type="button" data-dice-type="over">Over</button>
+                        <button id="diceUnderBtn" class="segment-btn" type="button" data-dice-type="under">Under</button>
+                    </div>
+                    <div class="dice-value">Value: <strong id="diceValueLabel">50.00</strong></div>
+                    <input id="diceValue" class="range-input" type="range" value="50" min="1" max="99" step="0.01">
+                    <div class="dice-card">
+                        <div>
+                            <span>Multiplier</span>
+                            <strong id="diceMultiplier">1.98x</strong>
+                        </div>
+                        <div>
+                            <span>Win Chance</span>
+                            <strong id="diceChance">50.00%</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mode-panel hidden" data-mode="keno">
+                    <div class="risk-row">
+                        <strong>Risk Level</strong>
+                        <div class="segmented">
+                            <button class="segment-btn active" type="button" data-risk="classic">Classic</button>
+                            <button class="segment-btn" type="button" data-risk="low">Low</button>
+                            <button class="segment-btn" type="button" data-risk="medium">Medium</button>
+                            <button class="segment-btn" type="button" data-risk="high">High</button>
+                        </div>
+                    </div>
+                    <p class="hint" id="kenoHint">Select 1-10 numbers to analyze (0 selected)</p>
+                    <div id="kenoGrid" class="tile-grid keno-grid"></div>
+                </div>
+            </section>
+        </section>
+
+        <section class="results-card">
+            <div class="results-head">
+                <h2>Parsed Results</h2>
+                <span>Found: <strong id="perfectCount">0</strong></span>
             </div>
-        </aside>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nonce</th>
+                            <th>Max Hit</th>
+                            <th>Payout Counts</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsBody"></tbody>
+                </table>
+            </div>
+        </section>
     </main>
 
 <script>
-    const WORKER_SOURCE = `
+const WORKER_SOURCE = `
 const encoder = new TextEncoder();
 const keyCache = new Map();
 
 async function getHmacKey(serverSeed) {
     if (keyCache.has(serverSeed)) return keyCache.get(serverSeed);
-    const key = await crypto.subtle.importKey(
-        'raw',
-        encoder.encode(serverSeed),
-        { name: 'HMAC', hash: 'SHA-256' },
-        false,
-        ['sign']
-    );
+    const key = await crypto.subtle.importKey('raw', encoder.encode(serverSeed), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
     keyCache.set(serverSeed, key);
     return key;
 }
 
-async function hmacSha256Bytes(serverSeed, message) {
+async function hmacBytes(serverSeed, message) {
     const key = await getHmacKey(serverSeed);
-    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
-    return new Uint8Array(signature);
+    return new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(message)));
 }
 
-async function getMinePositions(serverSeed, clientSeed, nonce, mineCount) {
-    const positions = [...Array(25).keys()];
-    const mines = [];
-    let allBytes = new Uint8Array(0);
+async function randomBytes(serverSeed, clientSeed, nonce, byteCount) {
+    let bytes = new Uint8Array(0);
     let round = 0;
-
-    while (allBytes.length < mineCount * 4) {
-        const msg = clientSeed + ':' + nonce + ':' + round;
-        const digest = await hmacSha256Bytes(serverSeed, msg);
-        const merged = new Uint8Array(allBytes.length + digest.length);
-        merged.set(allBytes, 0);
-        merged.set(digest, allBytes.length);
-        allBytes = merged;
+    while (bytes.length < byteCount) {
+        const digest = await hmacBytes(serverSeed, clientSeed + ':' + nonce + ':' + round);
+        const merged = new Uint8Array(bytes.length + digest.length);
+        merged.set(bytes, 0);
+        merged.set(digest, bytes.length);
+        bytes = merged;
         round++;
     }
-
-    for (let i = 0; i < mineCount; i++) {
-        const offset = i * 4;
-        const valInt =
-            (allBytes[offset] * 16777216) +
-            (allBytes[offset + 1] * 65536) +
-            (allBytes[offset + 2] * 256) +
-            allBytes[offset + 3];
-        const val = valInt / 4294967296;
-        const idx = Math.floor(val * positions.length);
-        mines.push(positions.splice(idx, 1)[0]);
-    }
-
-    return mines;
+    return bytes;
 }
 
-self.onmessage = async function (e) {
-    const data = e.data;
-    let processed = 0;
-    const total = data.endNonce - data.startNonce;
+function uint32ToFloat(bytes, offset) {
+    const value = bytes[offset] * 16777216 + bytes[offset + 1] * 65536 + bytes[offset + 2] * 256 + bytes[offset + 3];
+    return value / 4294967296;
+}
 
-    for (let nonce = data.startNonce; nonce < data.endNonce; nonce++) {
-        const mines = await getMinePositions(
-            data.serverSeed,
-            data.clientSeed,
-            nonce,
-            data.mineCount
-        );
+async function drawUnique(serverSeed, clientSeed, nonce, count, poolSize) {
+    const pool = Array.from({ length: poolSize }, (_, i) => i);
+    const bytes = await randomBytes(serverSeed, clientSeed, nonce, count * 4);
+    const result = [];
+    for (let i = 0; i < count; i++) {
+        const value = uint32ToFloat(bytes, i * 4);
+        const idx = Math.floor(value * pool.length);
+        result.push(pool.splice(idx, 1)[0]);
+    }
+    return result;
+}
 
+function combinations(n, k) {
+    if (k < 0 || k > n) return 0;
+    if (k === 0 || k === n) return 1;
+    let c = 1;
+    for (let i = 1; i <= k; i++) c = c * (n - i + 1) / i;
+    return c;
+}
+
+function minesMultiplier(hits, mines) {
+    if (hits < 1 || mines < 1 || hits + mines > 25) return null;
+    if (hits === 1 && mines === 1) return 1.01;
+    const win = combinations(25 - mines, hits);
+    if (!win) return null;
+    const value = 0.99 * (combinations(25, hits) / win);
+    return value >= 1000 ? Math.round(value) : Math.round(value * 100) / 100;
+}
+
+function diceMultiplier(type, target) {
+    const chance = type === 'under' ? target : 100 - target;
+    if (chance <= 0) return null;
+    return Math.round((99 / chance) * 10000) / 10000;
+}
+
+function formatPayout(value) {
+    if (value === null || Number.isNaN(value)) return '-';
+    return 'x' + Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }).replace(/,/g, ' ');
+}
+
+async function analyzeNonce(data, nonce) {
+    if (data.game === 'mines') {
+        const mines = await drawUnique(data.serverSeed, data.clientSeed, nonce, data.mineCount, 25);
         const mineSet = new Set(mines);
-        const diamonds = data.diamondPositions.filter(p => !mineSet.has(p));
-
-        if (diamonds.length === data.diamondPositions.length) {
-            self.postMessage({ found: true, nonce: nonce, mines: mines });
+        let hits = 0;
+        for (const pos of data.selected) {
+            if (mineSet.has(pos)) break;
+            hits++;
         }
+        if (hits < data.minHit) return null;
+        const payout = minesMultiplier(hits, data.mineCount);
+        return { nonce, maxHit: hits, payoutCounts: formatPayout(payout) };
+    }
 
+    if (data.game === 'keno') {
+        const drawn = await drawUnique(data.serverSeed, data.clientSeed, nonce, 10, 40);
+        const drawnSet = new Set(drawn.map(n => n + 1));
+        const hits = data.selected.filter(n => drawnSet.has(n)).length;
+        if (hits < data.minHit) return null;
+        return { nonce, maxHit: hits, payoutCounts: hits + ' / ' + data.selected.length + ' hits' };
+    }
+
+    const bytes = await randomBytes(data.serverSeed, data.clientSeed, nonce, 4);
+    const roll = Math.floor(uint32ToFloat(bytes, 0) * 10000) / 100;
+    const isWin = data.diceType === 'under' ? roll < data.diceValue : roll > data.diceValue;
+    if (!isWin) return null;
+    const payout = diceMultiplier(data.diceType, data.diceValue);
+    return { nonce, maxHit: roll.toFixed(2), payoutCounts: formatPayout(payout) };
+}
+
+self.onmessage = async function (event) {
+    const data = event.data;
+    const total = data.endNonce - data.startNonce + 1;
+    let processed = 0;
+    for (let nonce = data.startNonce; nonce <= data.endNonce; nonce++) {
+        const result = await analyzeNonce(data, nonce);
+        if (result) self.postMessage({ found: true, result });
         processed++;
         if (processed % 250 === 0 || processed === total) {
-            self.postMessage({
-                progress: (processed / total * 100).toFixed(1)
-            });
+            self.postMessage({ progress: (processed / total * 100).toFixed(1) });
         }
     }
-
     self.postMessage({ done: true });
 };
-    `;
-    const WORKER_URL = URL.createObjectURL(new Blob([WORKER_SOURCE], { type: 'application/javascript' }));
+`;
 
-    let diamondPositions = [];
-    let currentScanStopper = null;
+const WORKER_URL = URL.createObjectURL(new Blob([WORKER_SOURCE], { type: 'application/javascript' }));
+const state = {
+    game: 'mines',
+    diceType: 'over',
+    kenoRisk: 'classic',
+    minesSelected: [],
+    kenoSelected: [],
+    stopper: null
+};
 
-    const serverSeedInput = document.getElementById('serverSeed');
-    const clientSeedInput = document.getElementById('clientSeed');
-    const mineCountInput = document.getElementById('mineCount');
-    const gemsCountInput = document.getElementById('gemsCount');
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const randomSelectBtn = document.getElementById('randomSelectBtn');
-    const selectedCountSpan = document.getElementById('selectedCount');
-    const diamondGridDiv = document.getElementById('diamondGrid');
-    const progressWrap = document.getElementById('progressWrap');
-    const progressBar = document.getElementById('progressBar');
-    const perfectCountSpan = document.getElementById('perfectCount');
-    const resultsBody = document.getElementById('resultsBody');
-    const currentMultiLabel = document.getElementById('currentMulti');
+const el = {
+    gameSelect: document.getElementById('gameSelect'),
+    clientSeed: document.getElementById('clientSeed'),
+    serverSeed: document.getElementById('serverSeed'),
+    startNonce: document.getElementById('startNonce'),
+    endNonce: document.getElementById('endNonce'),
+    minHit: document.getElementById('minHitInput'),
+    maxRows: document.getElementById('maxRowsInput'),
+    startBtn: document.getElementById('startBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    progressWrap: document.getElementById('progressWrap'),
+    progressBar: document.getElementById('progressBar'),
+    resultsBody: document.getElementById('resultsBody'),
+    perfectCount: document.getElementById('perfectCount'),
+    mineCount: document.getElementById('mineCount'),
+    mineCountLabel: document.getElementById('mineCountLabel'),
+    minesStats: document.getElementById('minesStats'),
+    minesHint: document.getElementById('minesHint'),
+    minesMultiplier: document.getElementById('minesMultiplier'),
+    minesGrid: document.getElementById('minesGrid'),
+    diceValue: document.getElementById('diceValue'),
+    diceValueLabel: document.getElementById('diceValueLabel'),
+    diceMultiplier: document.getElementById('diceMultiplier'),
+    diceChance: document.getElementById('diceChance'),
+    kenoGrid: document.getElementById('kenoGrid'),
+    kenoHint: document.getElementById('kenoHint'),
+    patternName: document.getElementById('patternName'),
+    savePatternBtn: document.getElementById('savePatternBtn'),
+    patternsList: document.getElementById('patternsList')
+};
 
-    document.addEventListener('DOMContentLoaded', function () {
-        createGrid();
-        serverSeedInput.addEventListener('input', validateForm);
-        clientSeedInput.addEventListener('input', validateForm);
-        mineCountInput.addEventListener('input', function () {
-            syncGemsLimit();
-            updateGridDisabledState();
-            validateForm();
-        });
-        gemsCountInput.addEventListener('input', syncGemsLimit);
-        randomSelectBtn.addEventListener('click', randomSelectCells);
-        startBtn.addEventListener('click', startScan);
-        stopBtn.addEventListener('click', stopScan);
+let patterns = [];
 
-        loadPatterns();
-        document.getElementById('savePatternBtn').addEventListener('click', savePattern);
-        document.getElementById('battleBtn').addEventListener('click', startBattle);
-        document.getElementById('deleteSelectedBtn').addEventListener('click', deleteSelectedPatterns);
-        document.getElementById('hideResultsBtn').addEventListener('click', () => {
-            document.getElementById('battleResultsCard').style.display = 'none';
-        });
-        syncGemsLimit();
-        updateCurrentMultiplier();
+document.addEventListener('DOMContentLoaded', () => {
+    buildMinesGrid();
+    buildKenoGrid();
+    bindEvents();
+    loadPatterns();
+    updateGameMode();
+    updateControls();
+});
+
+function bindEvents() {
+    el.gameSelect.addEventListener('change', () => {
+        state.game = el.gameSelect.value;
+        updateGameMode();
+        updateControls();
     });
-
-    function createGrid() {
-        diamondGridDiv.innerHTML = '';
-        for (let i = 0; i < 25; i++) {
-            const cell = document.createElement('div');
-            cell.className = 'grid-cell';
-            cell.dataset.pos = i;
-            renderGridCell(cell, false);
-            cell.addEventListener('click', function () {
-                if (this.classList.contains('disabled')) return;
-                this.classList.toggle('selected');
-                updatePositions();
-                validateForm();
-            });
-            diamondGridDiv.appendChild(cell);
-        }
-        updateGridDisabledState();
-    }
-
-    function renderGridCell(cell, isSelected) {
-        const pos = parseInt(cell.dataset.pos, 10);
-        if (isSelected) {
-            cell.innerHTML = '<img class="gem-icon" src="./gem.png" alt="gem">';
-        } else {
-            cell.textContent = pos;
-        }
-    }
-
-    function updatePositions() {
-        diamondPositions = Array.from(document.querySelectorAll('.grid-cell.selected'))
-            .map(el => parseInt(el.dataset.pos, 10));
-
-        selectedCountSpan.textContent = 'Выбрано: ' + diamondPositions.length;
-        updateCurrentMultiplier();
-
-        document.querySelectorAll('.grid-cell').forEach(cell => {
-            renderGridCell(cell, cell.classList.contains('selected'));
+    [el.clientSeed, el.serverSeed, el.startNonce, el.endNonce, el.minHit].forEach(input => {
+        input.addEventListener('input', updateControls);
+    });
+    el.mineCount.addEventListener('input', () => {
+        trimMinesSelection();
+        updateControls();
+    });
+    el.diceValue.addEventListener('input', updateDiceInfo);
+    document.querySelectorAll('[data-dice-type]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            state.diceType = btn.dataset.diceType;
+            document.querySelectorAll('[data-dice-type]').forEach(item => item.classList.toggle('active', item === btn));
+            updateDiceInfo();
         });
-        updateGridDisabledState();
+    });
+    document.querySelectorAll('[data-risk]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            state.kenoRisk = btn.dataset.risk;
+            document.querySelectorAll('[data-risk]').forEach(item => item.classList.toggle('active', item === btn));
+        });
+    });
+    el.startBtn.addEventListener('click', startScan);
+    el.stopBtn.addEventListener('click', stopScan);
+    el.savePatternBtn.addEventListener('click', savePattern);
+}
+
+function buildMinesGrid() {
+    el.minesGrid.innerHTML = '';
+    for (let i = 0; i < 25; i++) {
+        const button = document.createElement('button');
+        button.className = 'tile';
+        button.type = 'button';
+        button.dataset.pos = i;
+        button.addEventListener('click', () => toggleMinesTile(i));
+        el.minesGrid.appendChild(button);
     }
+}
 
-    function updateGridDisabledState() {
-        const mineCount = parseInt(mineCountInput.value, 10) || 10;
-        const maxDiamonds = 25 - mineCount;
-        const currentSelected = diamondPositions.length;
+function buildKenoGrid() {
+    el.kenoGrid.innerHTML = '';
+    for (let i = 1; i <= 40; i++) {
+        const button = document.createElement('button');
+        button.className = 'tile numbered';
+        button.type = 'button';
+        button.textContent = i;
+        button.dataset.number = i;
+        button.addEventListener('click', () => toggleKenoNumber(i));
+        el.kenoGrid.appendChild(button);
+    }
+}
 
-        document.querySelectorAll('.grid-cell').forEach(cell => {
-            if (!cell.classList.contains('selected') && currentSelected >= maxDiamonds) {
-                cell.classList.add('disabled');
-            } else {
-                cell.classList.remove('disabled');
+function toggleMinesTile(pos) {
+    const mineCount = parseInt(el.mineCount.value, 10);
+    const maxGems = 25 - mineCount;
+    if (state.minesSelected.includes(pos)) {
+        state.minesSelected = state.minesSelected.filter(item => item !== pos);
+    } else if (state.minesSelected.length < maxGems) {
+        state.minesSelected.push(pos);
+    }
+    updateControls();
+}
+
+function toggleKenoNumber(number) {
+    if (state.kenoSelected.includes(number)) {
+        state.kenoSelected = state.kenoSelected.filter(item => item !== number);
+    } else if (state.kenoSelected.length < 10) {
+        state.kenoSelected.push(number);
+    }
+    updateControls();
+}
+
+function trimMinesSelection() {
+    const mineCount = parseInt(el.mineCount.value, 10);
+    const maxGems = 25 - mineCount;
+    state.minesSelected = state.minesSelected.slice(0, maxGems);
+}
+
+function updateGameMode() {
+    document.querySelectorAll('.mode-panel').forEach(panel => {
+        panel.classList.toggle('hidden', panel.dataset.mode !== state.game);
+    });
+}
+
+function updateControls() {
+    updateMinesInfo();
+    updateKenoInfo();
+    updateDiceInfo();
+    renderPatternsList();
+    const hasSeeds = el.clientSeed.value.trim() && el.serverSeed.value.trim();
+    const rangeOk = getStartNonce() <= getEndNonce();
+    const selectionOk =
+        state.game === 'dice' ||
+        (state.game === 'mines' && state.minesSelected.length > 0) ||
+        (state.game === 'keno' && state.kenoSelected.length > 0);
+    el.startBtn.disabled = !(hasSeeds && rangeOk && selectionOk);
+}
+
+function updateMinesInfo() {
+    const mineCount = parseInt(el.mineCount.value, 10);
+    const maxGems = 25 - mineCount;
+    el.mineCountLabel.textContent = mineCount;
+    el.minesStats.textContent = 'Gems: ' + state.minesSelected.length + ' / Mines: ' + mineCount;
+    el.minesHint.textContent = 'Select tiles to click (' + state.minesSelected.length + '/' + maxGems + ')';
+    el.minesMultiplier.textContent = formatMultiplier(minesMultiplier(state.minesSelected.length, mineCount));
+    document.querySelectorAll('#minesGrid .tile').forEach(tile => {
+        const pos = parseInt(tile.dataset.pos, 10);
+        tile.classList.toggle('selected', state.minesSelected.includes(pos));
+        tile.classList.toggle('disabled', !state.minesSelected.includes(pos) && state.minesSelected.length >= maxGems);
+        tile.innerHTML = state.minesSelected.includes(pos) ? '<img class="gem-icon" src="./gem.png" alt="gem">' : '';
+    });
+}
+
+function updateKenoInfo() {
+    el.kenoHint.textContent = 'Select 1-10 numbers to analyze (' + state.kenoSelected.length + ' selected)';
+    document.querySelectorAll('#kenoGrid .tile').forEach(tile => {
+        const number = parseInt(tile.dataset.number, 10);
+        tile.classList.toggle('selected', state.kenoSelected.includes(number));
+        tile.classList.toggle('disabled', !state.kenoSelected.includes(number) && state.kenoSelected.length >= 10);
+    });
+}
+
+function updateDiceInfo() {
+    const value = parseFloat(el.diceValue.value);
+    const chance = state.diceType === 'under' ? value : 100 - value;
+    const multiplier = chance > 0 ? 99 / chance : 0;
+    el.diceValueLabel.textContent = value.toFixed(2);
+    el.diceChance.textContent = chance.toFixed(2) + '%';
+    el.diceMultiplier.textContent = multiplier.toFixed(4) + 'x';
+}
+
+function getStartNonce() {
+    return parseInt(el.startNonce.value, 10) || 0;
+}
+
+function getEndNonce() {
+    return parseInt(el.endNonce.value, 10) || 0;
+}
+
+function combinations(n, k) {
+    if (k < 0 || k > n) return 0;
+    if (k === 0 || k === n) return 1;
+    let c = 1;
+    for (let i = 1; i <= k; i++) c = c * (n - i + 1) / i;
+    return c;
+}
+
+function minesMultiplier(gems, mines) {
+    if (gems < 1 || mines < 1 || gems + mines > 25) return null;
+    if (gems === 1 && mines === 1) return 1.01;
+    const win = combinations(25 - mines, gems);
+    if (!win) return null;
+    const value = 0.99 * (combinations(25, gems) / win);
+    return value >= 1000 ? Math.round(value) : Math.round(value * 100) / 100;
+}
+
+function formatMultiplier(value) {
+    if (value === null || Number.isNaN(value)) return '-';
+    return 'x' + Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/,/g, ' ');
+}
+
+function startScan() {
+    stopScan(false);
+    el.resultsBody.innerHTML = '';
+    el.perfectCount.textContent = '0';
+    setProgress(0);
+    el.startBtn.disabled = true;
+    el.stopBtn.disabled = false;
+
+    const params = {
+        game: state.game,
+        serverSeed: el.serverSeed.value.trim(),
+        clientSeed: el.clientSeed.value.trim(),
+        startNonce: getStartNonce(),
+        endNonce: getEndNonce(),
+        minHit: parseInt(el.minHit.value, 10) || 1,
+        mineCount: parseInt(el.mineCount.value, 10),
+        selected: state.game === 'keno' ? [...state.kenoSelected] : [...state.minesSelected],
+        diceType: state.diceType,
+        diceValue: parseFloat(el.diceValue.value)
+    };
+
+    state.stopper = runScanWithWorkers(
+        params,
+        addResult,
+        setProgress,
+        () => {
+            setProgress(100);
+            el.stopBtn.disabled = true;
+            state.stopper = null;
+            updateControls();
+        }
+    );
+}
+
+function stopScan(update = true) {
+    if (state.stopper) {
+        state.stopper();
+        state.stopper = null;
+    }
+    el.stopBtn.disabled = true;
+    if (update) updateControls();
+}
+
+function runScanWithWorkers(params, onResult, onProgress, onDone) {
+    const totalRange = params.endNonce - params.startNonce + 1;
+    if (totalRange <= 0) {
+        onDone();
+        return () => {};
+    }
+    const workerCount = Math.min(Math.max((navigator.hardwareConcurrency || 4) - 1, 1), totalRange);
+    const chunkSize = Math.ceil(totalRange / workerCount);
+    const workers = [];
+    const progress = new Array(workerCount).fill(0);
+    let completed = 0;
+
+    for (let i = 0; i < workerCount; i++) {
+        const start = params.startNonce + i * chunkSize;
+        const end = Math.min(params.endNonce, start + chunkSize - 1);
+        if (start > end) continue;
+        const worker = new Worker(WORKER_URL);
+        workers.push(worker);
+        const share = (end - start + 1) / totalRange;
+        worker.onmessage = event => {
+            if (event.data.found) onResult(event.data.result);
+            if (event.data.progress !== undefined) {
+                progress[i] = (parseFloat(event.data.progress) / 100) * share;
+                onProgress(progress.reduce((sum, item) => sum + item, 0) * 100);
             }
-        });
-    }
-
-    function validateForm() {
-        const serverSeed = serverSeedInput.value.trim();
-        const clientSeed = clientSeedInput.value.trim();
-        const mineCount = parseInt(mineCountInput.value, 10) || 10;
-        const maxDiamonds = 25 - mineCount;
-        const selected = diamondPositions.length;
-        startBtn.disabled = !(serverSeed && clientSeed && selected <= maxDiamonds);
-        updateCurrentMultiplier();
-    }
-
-    function syncGemsLimit() {
-        const mineCount = parseInt(mineCountInput.value, 10) || 10;
-        const maxDiamonds = Math.max(1, 25 - mineCount);
-        gemsCountInput.max = String(maxDiamonds);
-        let gems = parseInt(gemsCountInput.value, 10) || 1;
-        if (gems > maxDiamonds) gems = maxDiamonds;
-        if (gems < 1) gems = 1;
-        gemsCountInput.value = String(gems);
-    }
-
-    function randomSelectCells() {
-        syncGemsLimit();
-        const mineCount = parseInt(mineCountInput.value, 10) || 10;
-        const maxDiamonds = 25 - mineCount;
-        const requested = parseInt(gemsCountInput.value, 10) || 1;
-        const target = Math.min(requested, maxDiamonds);
-
-        const positions = [...Array(25).keys()];
-        for (let i = positions.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            const t = positions[i];
-            positions[i] = positions[j];
-            positions[j] = t;
-        }
-
-        const picked = new Set(positions.slice(0, target));
-        document.querySelectorAll('.grid-cell').forEach(cell => {
-            const pos = parseInt(cell.dataset.pos, 10);
-            const selected = picked.has(pos);
-            cell.classList.toggle('selected', selected);
-            renderGridCell(cell, selected);
-        });
-
-        updatePositions();
-        validateForm();
-    }
-
-    function getCombinations(n, k) {
-        if (k < 0 || k > n) return 0;
-        if (k === 0 || k === n) return 1;
-        let c = 1;
-        for (let i = 1; i <= k; i++) {
-            c = c * (n - i + 1) / i;
-        }
-        return c;
-    }
-
-    function getMultiplier(diamond, mine) {
-        if (diamond < 1 || mine < 1 || diamond > 24 || mine > 24) return null;
-        if (diamond + mine > 25) return null;
-        if (diamond === 1 && mine === 1) return 1.01;
-
-        const totalCombs = getCombinations(25, diamond);
-        const winCombs = getCombinations(25 - mine, diamond);
-        if (!winCombs) return null;
-
-        const multiplier = 0.99 * (totalCombs / winCombs);
-        if (multiplier >= 1000) return Math.round(multiplier);
-        return Math.round(multiplier * 100) / 100;
-    }
-
-    function updateCurrentMultiplier() {
-        const diamond = diamondPositions.length;
-        const mine = parseInt(mineCountInput.value, 10) || 0;
-        if (diamond === 0 || mine === 0) {
-            currentMultiLabel.textContent = 'current multi. -';
-            return;
-        }
-
-        const value = getMultiplier(diamond, mine);
-        if (value === null) {
-            currentMultiLabel.textContent = 'current multi. -';
-            return;
-        }
-        const formattedValue = Number(value)
-            .toFixed(2)
-            .replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-        currentMultiLabel.textContent = 'current multi. x' + formattedValue;
-    }
-
-    function runScanWithWorkers(params, onResult, onProgress, onDone) {
-        const totalRange = params.endNonce - params.startNonce;
-        if (totalRange <= 0) {
-            onDone();
-            return () => {};
-        }
-
-        const numWorkers = Math.min(navigator.hardwareConcurrency || 4, totalRange);
-        const chunkSize = Math.ceil(totalRange / numWorkers);
-        const workers = [];
-        const workerProgresses = new Array(numWorkers).fill(0);
-        let completedWorkers = 0;
-
-        function stopAll() {
-            workers.forEach(w => w && w.terminate());
-            workers.length = 0;
-        }
-
-        function updateOverallProgress() {
-            const percent = (workerProgresses.reduce((acc, p) => acc + p, 0) * 100).toFixed(1);
-            onProgress(percent);
-        }
-
-        for (let i = 0; i < numWorkers; i++) {
-            const workerStart = params.startNonce + i * chunkSize;
-            let workerEnd = workerStart + chunkSize;
-            if (i === numWorkers - 1) workerEnd = params.endNonce;
-            if (workerStart >= workerEnd) {
-                workerProgresses[i] = 1 / numWorkers;
-                completedWorkers++;
-                continue;
+            if (event.data.done) {
+                progress[i] = share;
+                completed++;
+                if (completed === workers.length) onDone();
             }
-
-            const workerTotal = workerEnd - workerStart;
-            const workerShare = workerTotal / totalRange;
-            const worker = new Worker(WORKER_URL);
-            workers[i] = worker;
-
-            worker.onmessage = function (e) {
-                if (e.data.found) {
-                    onResult(e.data.nonce, e.data.mines);
-                    return;
-                }
-
-                if (e.data.progress !== undefined) {
-                    workerProgresses[i] = (parseFloat(e.data.progress) / 100) * workerShare;
-                    updateOverallProgress();
-                }
-
-                if (e.data.done) {
-                    workerProgresses[i] = workerShare;
-                    updateOverallProgress();
-                    completedWorkers++;
-                    if (completedWorkers === numWorkers) {
-                        onDone();
-                    }
-                }
-            };
-
-            worker.postMessage({
-                serverSeed: params.serverSeed,
-                clientSeed: params.clientSeed,
-                mineCount: params.mineCount,
-                startNonce: workerStart,
-                endNonce: workerEnd,
-                diamondPositions: params.diamondPositions
-            });
-        }
-
-        return stopAll;
-    }
-
-    function startScan() {
-        if (currentScanStopper) {
-            currentScanStopper();
-            currentScanStopper = null;
-        }
-
-        const params = {
-            serverSeed: serverSeedInput.value.trim(),
-            clientSeed: clientSeedInput.value.trim(),
-            mineCount: parseInt(mineCountInput.value, 10),
-            startNonce: parseInt(document.getElementById('startNonce').value, 10),
-            endNonce: parseInt(document.getElementById('endNonce').value, 10),
-            diamondPositions: diamondPositions
         };
-
-        if (params.diamondPositions.length > 25 - params.mineCount) {
-            alert('Слишком много выбранных алмазов.');
-            return;
-        }
-
-        resultsBody.innerHTML = '';
-        perfectCountSpan.textContent = '0';
-        progressWrap.style.display = 'block';
-        progressBar.style.width = '0%';
-        progressBar.textContent = '0%';
-
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-
-        currentScanStopper = runScanWithWorkers(
-            params,
-            (nonce, mines) => addResult(nonce, mines),
-            (percent) => {
-                progressBar.style.width = percent + '%';
-                progressBar.textContent = percent + '%';
-            },
-            () => {
-                progressBar.style.width = '100%';
-                progressBar.textContent = '100%';
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                currentScanStopper = null;
-            }
-        );
+        worker.postMessage({ ...params, startNonce: start, endNonce: end });
     }
 
-    function stopScan() {
-        if (currentScanStopper) {
-            currentScanStopper();
-            currentScanStopper = null;
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
+    return () => workers.forEach(worker => worker.terminate());
+}
+
+function setProgress(value) {
+    const percent = Math.max(0, Math.min(100, Number(value))).toFixed(1);
+    el.progressBar.style.width = percent + '%';
+    el.progressBar.textContent = percent + '%';
+}
+
+function addResult(result) {
+    const maxRows = parseInt(el.maxRows.value, 10) || 250;
+    const rows = Array.from(el.resultsBody.rows);
+    let insertAt = rows.length;
+    for (let i = 0; i < rows.length; i++) {
+        if (result.nonce < parseInt(rows[i].cells[0].textContent, 10)) {
+            insertAt = i;
+            break;
         }
     }
+    const row = el.resultsBody.insertRow(insertAt);
+    row.innerHTML = '<td>' + result.nonce + '</td><td>' + result.maxHit + '</td><td>' + result.payoutCounts + '</td>';
+    while (el.resultsBody.rows.length > maxRows) el.resultsBody.deleteRow(el.resultsBody.rows.length - 1);
+    el.perfectCount.textContent = String((parseInt(el.perfectCount.textContent, 10) || 0) + 1);
+}
 
-    function addResult(nonce, mines) {
-        const rows = Array.from(resultsBody.rows);
-        let insertAt = rows.length;
-        for (let i = 0; i < rows.length; i++) {
-            const rowNonce = parseInt(rows[i].cells[0].textContent, 10);
-            if (nonce < rowNonce) {
-                insertAt = i;
-                break;
-            }
-        }
+function currentPatternPositions() {
+    if (state.game === 'mines') return [...state.minesSelected];
+    if (state.game === 'keno') return [...state.kenoSelected];
+    return [];
+}
 
-        const row = resultsBody.insertRow(insertAt);
-        row.innerHTML = '<td>' + nonce + '</td><td>' + mines.join(', ') + '</td>';
-        perfectCountSpan.textContent = String((parseInt(perfectCountSpan.textContent, 10) || 0) + 1);
+function loadPatterns() {
+    const saved = localStorage.getItem('seedScannerPatterns');
+    if (!saved) return;
+    try {
+        patterns = JSON.parse(saved);
+    } catch {
+        patterns = [];
     }
+}
 
-    let patterns = [];
+function persistPatterns() {
+    localStorage.setItem('seedScannerPatterns', JSON.stringify(patterns));
+}
 
-    function loadPatterns() {
-        const saved = localStorage.getItem('minePatterns');
-        if (saved) {
-            try {
-                patterns = JSON.parse(saved);
-            } catch {
-                patterns = [];
-            }
-        }
-        renderPatternsList();
+function savePattern() {
+    if (state.game === 'dice') {
+        alert('Dice does not use saved tile patterns.');
+        return;
     }
-
-    function savePatterns() {
-        localStorage.setItem('minePatterns', JSON.stringify(patterns));
+    const name = el.patternName.value.trim();
+    const positions = currentPatternPositions();
+    if (!name) {
+        alert('Enter pattern name.');
+        return;
     }
-
-    function renderPatternsList() {
-        const listDiv = document.getElementById('patternsList');
-        if (patterns.length === 0) {
-            listDiv.innerHTML = '<p class="text-muted text-center m-0">Нет сохраненных паттернов</p>';
-            return;
-        }
-
-        let html = '';
-        patterns.forEach((p, idx) => {
-            html +=
-                '<div class="pattern-item">' +
-                    '<label><input type="checkbox" class="pattern-checkbox" data-index="' + idx + '">' +
-                    '<span>' + p.name + ' (' + p.positions.length + ' ◆)</span></label>' +
-                    '<div>' +
-                        '<button class="btn btn-sm btn-outline-info me-1" onclick="loadPattern(' + idx + ')">Загрузить</button>' +
-                        '<button class="btn btn-sm btn-outline-danger" onclick="deletePattern(' + idx + ')">Удалить</button>' +
-                    '</div>' +
-                '</div>';
-        });
-        listDiv.innerHTML = html;
+    if (positions.length === 0) {
+        alert('Select tiles or numbers first.');
+        return;
     }
+    patterns = patterns.filter(pattern => !(pattern.game === state.game && pattern.name === name));
+    patterns.push({ id: Date.now(), game: state.game, name, positions });
+    persistPatterns();
+    el.patternName.value = '';
+    renderPatternsList();
+}
 
-    window.loadPattern = function (index) {
-        const p = patterns[index];
-        if (!p) return;
-
-        document.querySelectorAll('.grid-cell').forEach(cell => {
-            cell.classList.remove('selected');
-            renderGridCell(cell, false);
-        });
-
-        p.positions.forEach(pos => {
-            const cell = document.querySelector('.grid-cell[data-pos="' + pos + '"]');
-            if (cell) {
-                cell.classList.add('selected');
-                renderGridCell(cell, true);
-            }
-        });
-        updatePositions();
-        validateForm();
-    };
-
-    window.deletePattern = function (index) {
-        if (!confirm('Удалить паттерн?')) return;
-        patterns.splice(index, 1);
-        savePatterns();
-        renderPatternsList();
-    };
-
-    function savePattern() {
-        const name = document.getElementById('patternName').value.trim();
-        if (!name) {
-            alert('Введите название.');
-            return;
-        }
-        if (diamondPositions.length === 0) {
-            alert('Выберите алмазы.');
-            return;
-        }
-
-        const existing = patterns.findIndex(p => p.name === name);
-        if (existing !== -1) {
-            if (!confirm('Паттерн с таким именем уже есть. Перезаписать?')) return;
-            patterns.splice(existing, 1);
-        }
-
-        patterns.push({
-            id: Date.now() + Math.random(),
-            name: name,
-            positions: [...diamondPositions]
-        });
-
-        savePatterns();
-        renderPatternsList();
-        document.getElementById('patternName').value = '';
+function renderPatternsList() {
+    const list = patterns.filter(pattern => pattern.game === state.game);
+    if (state.game === 'dice') {
+        el.patternsList.innerHTML = '<p class="empty-state">Dice has no tile patterns.</p>';
+        return;
     }
-
-    function deleteSelectedPatterns() {
-        const checkboxes = document.querySelectorAll('.pattern-checkbox:checked');
-        if (checkboxes.length === 0) {
-            alert('Выберите паттерны.');
-            return;
-        }
-        if (!confirm('Удалить ' + checkboxes.length + ' паттерн(ов)?')) return;
-
-        const indices = Array.from(checkboxes)
-            .map(cb => parseInt(cb.dataset.index, 10))
-            .sort((a, b) => b - a);
-
-        indices.forEach(idx => patterns.splice(idx, 1));
-        savePatterns();
-        renderPatternsList();
+    if (!list.length) {
+        el.patternsList.innerHTML = '<p class="empty-state">No saved patterns.</p>';
+        return;
     }
+    el.patternsList.innerHTML = list.map(pattern => (
+        '<div class="pattern-item">' +
+        '<span>' + pattern.name + ' (' + pattern.positions.length + ')</span>' +
+        '<div class="pattern-actions">' +
+        '<button type="button" onclick="loadPattern(' + pattern.id + ')">Load</button>' +
+        '<button type="button" onclick="deletePattern(' + pattern.id + ')">Delete</button>' +
+        '</div>' +
+        '</div>'
+    )).join('');
+}
 
-    function startBattle() {
-        const selectedIndices = Array.from(document.querySelectorAll('.pattern-checkbox:checked'))
-            .map(cb => parseInt(cb.dataset.index, 10));
-        if (selectedIndices.length === 0) {
-            alert('Выберите паттерны для баттла.');
-            return;
-        }
+window.loadPattern = function(id) {
+    const pattern = patterns.find(item => item.id === id);
+    if (!pattern) return;
+    if (pattern.game === 'mines') state.minesSelected = [...pattern.positions];
+    if (pattern.game === 'keno') state.kenoSelected = [...pattern.positions];
+    updateControls();
+};
 
-        const serverSeed = serverSeedInput.value.trim();
-        const clientSeed = clientSeedInput.value.trim();
-        if (!serverSeed || !clientSeed) {
-            alert('Заполните Server seed и Client seed.');
-            return;
-        }
-
-        const mineCount = parseInt(mineCountInput.value, 10);
-        const startNonce = parseInt(document.getElementById('startNonce').value, 10);
-        const endNonce = parseInt(document.getElementById('endNonce').value, 10);
-        const battlePatterns = selectedIndices.map(idx => patterns[idx]);
-
-        if (currentScanStopper) {
-            currentScanStopper();
-            currentScanStopper = null;
-        }
-
-        document.getElementById('battleResultsCard').style.display = 'block';
-        document.getElementById('battleResultsBody').innerHTML = '';
-        progressWrap.style.display = 'block';
-        progressBar.style.width = '0%';
-        progressBar.textContent = '0%';
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-
-        const totalPatterns = battlePatterns.length;
-        let currentPatternIdx = 0;
-        const results = [];
-
-        function runNextPattern() {
-            if (currentPatternIdx >= totalPatterns) {
-                progressBar.style.width = '100%';
-                progressBar.textContent = '100%';
-                startBtn.disabled = false;
-                stopBtn.disabled = true;
-                displayBattleResults(results);
-                currentScanStopper = null;
-                return;
-            }
-
-            const pattern = battlePatterns[currentPatternIdx];
-            let foundCount = 0;
-            const examples = [];
-
-            currentScanStopper = runScanWithWorkers(
-                {
-                    serverSeed,
-                    clientSeed,
-                    mineCount,
-                    startNonce,
-                    endNonce,
-                    diamondPositions: pattern.positions
-                },
-                (nonce) => {
-                    foundCount++;
-                    if (examples.length < 5) examples.push(nonce);
-                },
-                (percent) => {
-                    const overallPercent = ((currentPatternIdx + parseFloat(percent) / 100) / totalPatterns) * 100;
-                    progressBar.style.width = overallPercent.toFixed(1) + '%';
-                    progressBar.textContent = overallPercent.toFixed(1) + '%';
-                },
-                () => {
-                    results.push({
-                        name: pattern.name,
-                        count: foundCount,
-                        examples: examples
-                    });
-                    currentPatternIdx++;
-                    runNextPattern();
-                }
-            );
-        }
-
-        runNextPattern();
-    }
-
-    function displayBattleResults(results) {
-        if (results.length === 0) return;
-        results.sort((a, b) => b.count - a.count);
-        const maxCount = results[0].count;
-        let html = '';
-
-        results.forEach(r => {
-            const winnerClass = (r.count === maxCount && maxCount > 0) ? 'winner-row' : '';
-            const examplesText = r.examples.length ? r.examples.join(', ') : 'нет';
-            html += '<tr class="' + winnerClass + '"><td>' + r.name + '</td><td>' + r.count + '</td><td>' + examplesText + '</td></tr>';
-        });
-
-        document.getElementById('battleResultsBody').innerHTML = html;
-    }
+window.deletePattern = function(id) {
+    patterns = patterns.filter(pattern => pattern.id !== id);
+    persistPatterns();
+    renderPatternsList();
+};
 </script>
 </body>
 </html>
