@@ -488,6 +488,13 @@ td {
     font-size: 14px;
 }
 
+.nonce-list {
+    max-width: 520px;
+    white-space: normal;
+    word-break: break-word;
+    color: #cfd5e7;
+}
+
 tr:last-child td {
     border-bottom: 0;
 }
