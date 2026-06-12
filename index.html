@@ -157,11 +157,15 @@ async function hmacBytes(serverSeed, message) {
     return new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(message)));
 }
 
+function formatHmacMessage(clientSeed, nonce, round) {
+    return clientSeed + ':' + nonce + ':' + round;
+}
+
 async function randomBytes(serverSeed, clientSeed, nonce, byteCount) {
     let bytes = new Uint8Array(0);
     let round = 0;
     while (bytes.length < byteCount) {
-        const digest = await hmacBytes(serverSeed, clientSeed + ':' + nonce + ':' + round);
+        const digest = await hmacBytes(serverSeed, formatHmacMessage(clientSeed, nonce, round));
         const merged = new Uint8Array(bytes.length + digest.length);
         merged.set(bytes, 0);
         merged.set(digest, bytes.length);
@@ -232,10 +236,11 @@ async function analyzeNonce(data, nonce) {
 
     if (data.game === 'keno') {
         const drawn = await drawUnique(data.serverSeed, data.clientSeed, nonce, 10, 40);
-        const drawnSet = new Set(drawn.map(n => n + 1));
+        const finalDraw = drawn.map(n => n + 1);
+        const drawnSet = new Set(finalDraw);
         const hits = data.selected.filter(n => drawnSet.has(n)).length;
         if (hits < data.minHit) return null;
-        return { nonce, maxHit: hits, payoutCounts: hits + ' / ' + data.selected.length + ' hits' };
+        return { nonce, maxHit: hits, payoutCounts: hits + ' / ' + data.selected.length + ' hits | ' + finalDraw.join(', ') };
     }
 
     const bytes = await randomBytes(data.serverSeed, data.clientSeed, nonce, 4);
